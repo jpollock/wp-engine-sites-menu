@@ -149,7 +149,7 @@ class WPEngine_Sites_Menu {
     }
 
     public function enqueue_admin_scripts($hook) {
-        if ('toplevel_page_wp-engine-sites-menu' !== $hook) {
+        if ('settings_page_wp-engine-sites-menu' !== $hook) {
             return;
         }
 
@@ -335,13 +335,13 @@ class WPEngine_Sites_Menu {
     }
 
     public function add_admin_menu() {
-        add_menu_page(
-            __('WP Engine Sites Menu', 'wp-engine-sites-menu'),
-            __('WP Engine Menu', 'wp-engine-sites-menu'),
+        add_submenu_page(
+            'options-general.php',
+            __('WP Engine API', 'wp-engine-sites-menu'),
+            __('WP Engine API', 'wp-engine-sites-menu'),
             'manage_options',
             'wp-engine-sites-menu',
-            array($this, 'render_admin_page'),
-            'dashicons-admin-site'
+            array($this, 'render_admin_page')
         );
     }
 
@@ -392,8 +392,6 @@ class WPEngine_Sites_Menu {
         if (!current_user_can('manage_options')) {
             return;
         }
-
-        $has_credentials = !empty(get_option('wpe_username')) && !empty(get_option('wpe_password'));
         ?>
         <div class="wrap">
             <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
@@ -412,68 +410,8 @@ class WPEngine_Sites_Menu {
             </form>
             
             <div id="test-credentials-result" style="display: none;" class="wpe-test-credentials-result"></div>
-
-            <?php if ($has_credentials): ?>
-                <h2><?php _e('Connected Installs', 'wp-engine-sites-menu'); ?></h2>
-                <?php $this->display_connected_installs(); ?>
-            <?php endif; ?>
         </div>
         <?php
-    }
-
-    private function display_connected_installs() {
-        try {
-            if (!$this->init_sdk()) {
-                throw new \Exception(__('Failed to initialize WP Engine SDK', 'wp-engine-sites-menu'));
-            }
-
-            // Get current site domain
-            $current_domain = parse_url(get_site_url(), PHP_URL_HOST);
-            
-            try {
-                // Get all sites first
-                $sites_response = $this->sdk->sites->listSites();
-                
-                if (empty($sites_response['results'])) {
-                    echo '<p>' . __('No sites found.', 'wp-engine-sites-menu') . '</p>';
-                    return;
-                }
-
-                echo '<table class="wp-list-table widefat fixed striped">';
-                echo '<thead><tr>';
-                echo '<th>' . __('Site Name', 'wp-engine-sites-menu') . '</th>';
-                echo '<th>' . __('Install Name', 'wp-engine-sites-menu') . '</th>';
-                echo '<th>' . __('Environment', 'wp-engine-sites-menu') . '</th>';
-                echo '<th>' . __('Domain', 'wp-engine-sites-menu') . '</th>';
-                echo '</tr></thead><tbody>';
-
-                foreach ($sites_response['results'] as $site) {
-                    if (!empty($site['installs'])) {
-                        foreach ($site['installs'] as $install) {
-                            echo '<tr>';
-                            echo '<td>' . esc_html($site['name']) . '</td>';
-                            echo '<td>' . esc_html($install['name']) . '</td>';
-                            echo '<td>' . esc_html($install['environment']) . '</td>';
-                            echo '<td>' . esc_html($install['cname'] ?? 'N/A') . '</td>';
-                            echo '</tr>';
-                        }
-                    } else {
-                        echo '<tr>';
-                        echo '<td>' . esc_html($site['name']) . '</td>';
-                        echo '<td colspan="3">' . __('No installations', 'wp-engine-sites-menu') . '</td>';
-                        echo '</tr>';
-                    }
-                }
-
-                echo '</tbody></table>';
-
-            } catch (\Exception $e) {
-                throw new \Exception($e->getMessage());
-            }
-
-        } catch (\Exception $e) {
-            echo '<div class="notice notice-error"><p>' . esc_html($e->getMessage()) . '</p></div>';
-        }
     }
 }
 
