@@ -57,7 +57,7 @@ jQuery(document).ready(function($) {
                         Object.keys(groupedResults).forEach(function(siteName) {
                             const siteResults = groupedResults[siteName];
                             siteResults.forEach(function(result) {
-                                html += '<a class="ab-item" href="' + result.url + '">' +
+                                html += '<a class="ab-item" href="' + result.url + '" target="_blank">' +
                                     result.install_name + ' (' + result.environment + ')</a>';
                             });
                         });

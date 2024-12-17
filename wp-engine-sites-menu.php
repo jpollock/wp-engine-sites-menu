@@ -311,7 +311,15 @@ class WPEngine_Sites_Menu {
         }
 
         try {
-            $sites_response = $this->sdk->sites->listSites();
+            // Check for cached sites data
+            $sites_response = get_transient('wpe_sites_menu_data');
+            if ($sites_response === false) {
+                $sites_response = $this->sdk->sites->listSites();
+                // Cache the response using the configured duration
+                $cache_duration = absint(get_option('wpe_cache_duration', 3600));
+                set_transient('wpe_sites_menu_data', $sites_response, $cache_duration);
+            }
+
             $results = array();
 
             if (!empty($sites_response['results'])) {
@@ -330,7 +338,7 @@ class WPEngine_Sites_Menu {
                                         'site_name' => $site['name'],
                                         'install_name' => $install['name'],
                                         'environment' => $install['environment'],
-                                        'url' => 'https://' . $install['cname']
+                                        'url' => 'https://' . $install['cname'] . '/wp-admin'
                                     );
                                 }
                             }
@@ -354,7 +362,15 @@ class WPEngine_Sites_Menu {
             $current_domain = get_site_url();
             $current_domain_root = $this->get_domain_root($current_domain);
             
-            $sites_response = $this->sdk->sites->listSites();
+            // Check for cached sites data
+            $sites_response = get_transient('wpe_sites_menu_data');
+            if ($sites_response === false) {
+                $sites_response = $this->sdk->sites->listSites();
+                // Cache the response using the configured duration
+                $cache_duration = absint(get_option('wpe_cache_duration', 3600));
+                set_transient('wpe_sites_menu_data', $sites_response, $cache_duration);
+            }
+
             $current_site = null;
 
             // Find current site
@@ -417,9 +433,10 @@ class WPEngine_Sites_Menu {
                                 esc_html($install['name']),
                                 esc_html($install['environment'])
                             ),
-                            'href' => 'https://' . esc_attr($install['cname']),
+                            'href' => 'https://' . esc_attr($install['cname']) . '/wp-admin',
                             'meta' => array(
-                                'class' => 'wpe-current-site-installs'
+                                'class' => 'wpe-current-site-installs',
+                                'target' => '_blank'
                             )
                         ));
                     }
@@ -483,8 +500,15 @@ class WPEngine_Sites_Menu {
                 throw new \Exception(__('Failed to initialize WP Engine SDK', 'wp-engine-sites-menu'));
             }
 
+            // Clear the cache when testing credentials
+            delete_transient('wpe_sites_menu_data');
+
             $sites_response = $this->sdk->sites->listSites();
             $site_count = !empty($sites_response['results']) ? count($sites_response['results']) : 0;
+
+            // Cache the response using the configured duration
+            $cache_duration = absint(get_option('wpe_cache_duration', 3600));
+            set_transient('wpe_sites_menu_data', $sites_response, $cache_duration);
 
             wp_send_json_success(array(
                 'message' => sprintf(
@@ -513,6 +537,11 @@ class WPEngine_Sites_Menu {
     public function init_settings() {
         register_setting('wp_engine_sites_menu_settings', 'wpe_username');
         register_setting('wp_engine_sites_menu_settings', 'wpe_password');
+        register_setting('wp_engine_sites_menu_settings', 'wpe_cache_duration', array(
+            'type' => 'integer',
+            'default' => 3600,
+            'sanitize_callback' => array($this, 'sanitize_cache_duration')
+        ));
         
         add_settings_section(
             'wp_engine_sites_menu_main',
@@ -536,6 +565,19 @@ class WPEngine_Sites_Menu {
             'wp-engine-sites-menu',
             'wp_engine_sites_menu_main'
         );
+
+        add_settings_field(
+            'wpe_cache_duration',
+            __('Cache Duration (seconds)', 'wp-engine-sites-menu'),
+            array($this, 'cache_duration_field_callback'),
+            'wp-engine-sites-menu',
+            'wp_engine_sites_menu_main'
+        );
+    }
+
+    public function sanitize_cache_duration($value) {
+        $value = absint($value);
+        return $value > 0 ? $value : 3600;
     }
 
     public function settings_section_callback() {
@@ -551,6 +593,12 @@ class WPEngine_Sites_Menu {
         $password = get_option('wpe_password');
         // Don't show decrypted password in the field
         echo '<input type="password" id="wpe_password" name="wpe_password" value="' . (!empty($password) ? '********' : '') . '" class="regular-text">';
+    }
+
+    public function cache_duration_field_callback() {
+        $duration = get_option('wpe_cache_duration', 3600);
+        echo '<input type="number" id="wpe_cache_duration" name="wpe_cache_duration" value="' . esc_attr($duration) . '" class="regular-text" min="1">';
+        echo '<p class="description">' . __('Default: 3600 seconds (1 hour). Increase to reduce API calls, decrease for more frequent updates.', 'wp-engine-sites-menu') . '</p>';
     }
 
     public function render_admin_page() {
