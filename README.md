@@ -132,8 +132,8 @@ This plugin is licensed under the GPL v2 or later.
 
 ## Screenshots
 
-*(Coming soon)*
+1. **WP Engine Sites Menu**: Quick access dropdown menu in the WordPress admin bar
+   ![WP Engine Sites Menu](screenshots/dropdown.png)
 
-1. WP Engine Sites dropdown menu in action
-2. Plugin settings page
-3. Search functionality demonstration
+2. **Plugin Settings**: Configure your WP Engine API credentials and cache settings
+   ![Plugin Settings Page](screenshots/settings.png)
