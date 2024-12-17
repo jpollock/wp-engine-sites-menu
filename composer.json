@@ -2,7 +2,9 @@
     "name": "wp-plugins/wp-engine-sites-menu",
     "description": "WordPress plugin to display WP Engine sites menu",
     "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
     "require": {
+        "php": ">=8.0",
         "jpollock/wp-engine-api-php": "dev-main"
     },
     "autoload": {
@@ -10,5 +12,12 @@
             "WPEngineSitesMenu\\": "src/"
         }
     },
-    "minimum-stability": "dev"
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "composer/installers": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
 }
