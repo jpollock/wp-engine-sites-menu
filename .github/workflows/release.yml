@@ -1,0 +1,44 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          tools: composer:v2
+
+      - name: Install Dependencies
+        run: composer install --no-dev --optimize-autoloader
+
+      - name: Create Release Zip
+        run: |
+          # Create a clean copy without development files
+          mkdir release
+          cp -r js README.md CHANGELOG.md wp-engine-sites-menu.php vendor release/
+          cd release
+          # Remove development files
+          find . -name ".git*" -exec rm -rf {} +
+          find . -name "*.map" -exec rm {} +
+          rm -rf vendor/composer/installed.json
+          # Create zip
+          zip -r ../wp-engine-sites-menu.zip .
+          cd ..
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: wp-engine-sites-menu.zip
+          generate_release_notes: true
+          body_path: CHANGELOG.md

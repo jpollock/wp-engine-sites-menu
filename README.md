@@ -24,7 +24,7 @@ This plugin integrates with the WP Engine API to provide easy navigation between
 
 ## Installation
 
-1. Download the plugin zip file
+1. Download the plugin zip file from the [latest release](https://github.com/yourusername/wp-engine-sites-menu/releases/latest)
 2. Go to WordPress admin > Plugins > Add New
 3. Click "Upload Plugin" and select the zip file
 4. Click "Install Now"
@@ -76,6 +76,47 @@ The plugin caches WP Engine API responses to improve performance:
 - Configurable through the settings page
 - Cache is automatically cleared when testing credentials
 - Reduces API calls and improves menu load time
+
+## Releases
+
+This plugin follows [Semantic Versioning](https://semver.org/):
+
+- MAJOR version for incompatible API changes
+- MINOR version for added functionality in a backward compatible manner
+- PATCH version for backward compatible bug fixes
+
+### Creating a New Release
+
+1. Update version numbers in:
+   - `wp-engine-sites-menu.php` (Plugin header)
+   - JavaScript files where version is specified
+   - Any other files referencing the version number
+
+2. Update the CHANGELOG.md file:
+   - Add a new version section
+   - Document all notable changes under appropriate categories:
+     - Added
+     - Changed
+     - Deprecated
+     - Removed
+     - Fixed
+     - Security
+
+3. Create and push a new version tag:
+   ```bash
+   git add .
+   git commit -m "Prepare for version X.Y.Z"
+   git tag -a vX.Y.Z -m "Version X.Y.Z"
+   git push origin main --tags
+   ```
+
+4. The GitHub Actions workflow will automatically:
+   - Create a clean distribution package
+   - Remove development files
+   - Create a zip file
+   - Create a GitHub release
+   - Attach the zip file
+   - Add release notes from CHANGELOG.md
 
 ## Support
 
