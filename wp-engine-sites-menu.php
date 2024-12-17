@@ -128,10 +128,15 @@ class WPEngine_Sites_Menu {
         return $this->decrypt($encrypted_password);
     }
 
-    private function init_sdk() {
+    private function init_sdk($username = null, $password = null) {
         if ($this->sdk === null) {
-            $username = get_option('wpe_username');
-            $password = $this->get_password();
+            // If no credentials provided, use stored credentials
+            if ($username === null) {
+                $username = get_option('wpe_username');
+            }
+            if ($password === null) {
+                $password = $this->get_password();
+            }
             
             if (!empty($username) && !empty($password)) {
                 try {
@@ -496,7 +501,16 @@ class WPEngine_Sites_Menu {
         }
 
         try {
-            if (!$this->init_sdk()) {
+            // Get credentials from POST data if provided, otherwise use stored credentials
+            $username = !empty($_POST['username']) ? sanitize_text_field($_POST['username']) : null;
+            $password = !empty($_POST['password']) ? sanitize_text_field($_POST['password']) : null;
+
+            // If password is masked (********), use stored password
+            if ($password === '********') {
+                $password = null;
+            }
+
+            if (!$this->init_sdk($username, $password)) {
                 throw new \Exception(__('Failed to initialize WP Engine SDK', 'wp-engine-sites-menu'));
             }
 

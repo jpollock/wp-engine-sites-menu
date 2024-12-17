@@ -5,6 +5,10 @@ jQuery(document).ready(function($) {
         const $button = $(this);
         const $result = $('#test-credentials-result');
         
+        // Get current form values
+        const username = $('#wpe_username').val();
+        const password = $('#wpe_password').val();
+        
         // Disable button and show loading state
         $button.prop('disabled', true).text('Testing...');
         
@@ -13,7 +17,9 @@ jQuery(document).ready(function($) {
             type: 'POST',
             data: {
                 action: 'test_wpe_credentials',
-                nonce: wpeAdmin.nonce
+                nonce: wpeAdmin.nonce,
+                username: username,
+                password: password
             },
             success: function(response) {
                 if (response.success) {
