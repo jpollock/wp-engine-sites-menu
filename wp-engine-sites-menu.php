@@ -3,7 +3,7 @@
  * Plugin Name: WP Engine Sites Menu
  * Plugin URI: https://github.com/yourusername/wp-engine-sites-menu
  * Description: Display WP Engine sites menu for quick access to related installs
- * Version: 0.0.1
+ * Version: 0.0.2
  * Author: Your Name
  * Author URI: https://yourwebsite.com
  * License: GPL v2 or later
@@ -160,7 +160,7 @@ class WPEngine_Sites_Menu {
             'wpe-menu-script',
             plugins_url('js/menu.js', __FILE__),
             array('jquery'),
-            '0.0.1',
+            '0.0.2',
             true
         );
 
@@ -175,7 +175,7 @@ class WPEngine_Sites_Menu {
                 'wpe-admin-script',
                 plugins_url('js/admin.js', __FILE__),
                 array('jquery'),
-                '0.0.1',
+                '0.0.2',
                 true
             );
 
