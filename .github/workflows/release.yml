@@ -22,23 +22,36 @@ jobs:
       - name: Install Dependencies
         run: composer install --no-dev --optimize-autoloader
 
-      - name: Create Release Zip
+      - name: Create WordPress Plugin Zip
         run: |
+          # Get version from tag
+          VERSION=${GITHUB_REF#refs/tags/v}
+          
           # Create a clean copy without development files
-          mkdir release
-          cp -r js README.md CHANGELOG.md wp-engine-sites-menu.php vendor release/
-          cd release
+          mkdir -p dist/wp-engine-sites-menu
+          cp -r js README.md CHANGELOG.md wp-engine-sites-menu.php vendor dist/wp-engine-sites-menu/
+          
+          cd dist
+          
           # Remove development files
           find . -name ".git*" -exec rm -rf {} +
           find . -name "*.map" -exec rm {} +
-          rm -rf vendor/composer/installed.json
-          # Create zip
-          zip -r ../wp-engine-sites-menu.zip .
+          find . -name "composer.*" -exec rm {} +
+          find . -name "phpunit.*" -exec rm {} +
+          find . -name ".php_cs*" -exec rm {} +
+          find . -name ".editorconfig" -exec rm {} +
+          find . -name ".gitignore" -exec rm {} +
+          find . -name ".github" -type d -exec rm -rf {} +
+          find . -name "tests" -type d -exec rm -rf {} +
+          find . -name "docs" -type d -exec rm -rf {} +
+          
+          # Create WordPress plugin zip
+          zip -r ../wp-engine-sites-menu-${VERSION}.zip wp-engine-sites-menu
           cd ..
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: wp-engine-sites-menu.zip
+          files: wp-engine-sites-menu-*.zip
           generate_release_notes: true
           body_path: CHANGELOG.md
