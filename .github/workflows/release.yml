@@ -20,7 +20,9 @@ jobs:
           tools: composer:v2
 
       - name: Install Dependencies
-        run: composer install --no-dev --optimize-autoloader
+        run: |
+          # Install only production dependencies with optimized autoloader
+          composer install --no-dev --optimize-autoloader --no-scripts --prefer-dist
 
       - name: Create WordPress Plugin Zip
         run: |
@@ -33,7 +35,24 @@ jobs:
           
           cd dist
           
-          # Remove development files
+          # Remove unnecessary files from vendor
+          cd wp-engine-sites-menu/vendor
+          # Remove tests, docs, and other development files from vendor
+          find . -type d -name "tests" -exec rm -rf {} +
+          find . -type d -name "test" -exec rm -rf {} +
+          find . -type d -name "docs" -exec rm -rf {} +
+          find . -type d -name "examples" -exec rm -rf {} +
+          find . -type f -name "phpunit.xml*" -delete
+          find . -type f -name "*.md" -delete
+          find . -type f -name "*.dist" -delete
+          find . -type f -name "*.yml" -delete
+          find . -type f -name "*.yaml" -delete
+          find . -type f -name "*.xml" -delete
+          find . -type f -name "*.txt" -delete
+          find . -type f -name "*.json" ! -name "installed.json" -delete
+          cd ../..
+          
+          # Remove other development files
           find . -name ".git*" -exec rm -rf {} +
           find . -name "*.map" -exec rm {} +
           find . -name "composer.*" -exec rm {} +
@@ -42,8 +61,6 @@ jobs:
           find . -name ".editorconfig" -exec rm {} +
           find . -name ".gitignore" -exec rm {} +
           find . -name ".github" -type d -exec rm -rf {} +
-          find . -name "tests" -type d -exec rm -rf {} +
-          find . -name "docs" -type d -exec rm -rf {} +
           
           # Create WordPress plugin zip
           zip -r ../wp-engine-sites-menu-${VERSION}.zip wp-engine-sites-menu
