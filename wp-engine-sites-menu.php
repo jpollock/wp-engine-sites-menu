@@ -38,6 +38,7 @@ class WPEngine_Sites_Menu {
         add_action('admin_init', array($this, 'init_settings'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
         add_action('wp_ajax_test_wpe_credentials', array($this, 'test_credentials_ajax'));
+        add_action('wp_ajax_search_wpe_sites', array($this, 'search_sites_ajax'));
         add_action('admin_bar_menu', array($this, 'add_wpe_sites_menu'), 100);
         
         // Handle password encryption on settings update
@@ -149,49 +150,120 @@ class WPEngine_Sites_Menu {
     }
 
     public function enqueue_admin_scripts($hook) {
-        if ('settings_page_wp-engine-sites-menu' !== $hook) {
-            return;
-        }
-
+        // Always enqueue menu scripts for admin bar
         wp_enqueue_script(
-            'wpe-admin-script',
-            plugins_url('js/admin.js', __FILE__),
+            'wpe-menu-script',
+            plugins_url('js/menu.js', __FILE__),
             array('jquery'),
             '1.0.0',
             true
         );
 
-        wp_localize_script('wpe-admin-script', 'wpeAdmin', array(
+        wp_localize_script('wpe-menu-script', 'wpeMenu', array(
             'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('wpe_test_credentials')
+            'nonce' => wp_create_nonce('wpe_search_sites')
         ));
+
+        // Settings page scripts
+        if ('settings_page_wp-engine-sites-menu' === $hook) {
+            wp_enqueue_script(
+                'wpe-admin-script',
+                plugins_url('js/admin.js', __FILE__),
+                array('jquery'),
+                '1.0.0',
+                true
+            );
+
+            wp_localize_script('wpe-admin-script', 'wpeAdmin', array(
+                'ajax_url' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('wpe_test_credentials')
+            ));
+        }
 
         // Add inline styles
         wp_add_inline_style('admin-bar', '
+            /* Main menu container */
             #wpadminbar .wpe-sites-menu .ab-sub-wrapper {
-                max-height: 400px;
+                max-height: 600px;
                 overflow-y: auto;
             }
-            .wpe-test-credentials-result {
-                margin-top: 15px;
-                padding: 10px 15px;
-                border-radius: 4px;
+
+            /* Search box */
+            .wpe-search-container {
+                padding: 8px !important;
+                height: auto !important;
+                background: #32373c !important;
+                position: sticky !important;
+                top: 0 !important;
+                z-index: 100000 !important;
+                border-bottom: 1px solid #454545 !important;
             }
-            .wpe-test-credentials-result.success {
-                background-color: #dff0d8;
-                border: 1px solid #d6e9c6;
-                color: #3c763d;
+            .wpe-search-container input {
+                width: 100% !important;
+                height: 28px !important;
+                padding: 4px 8px !important;
+                border: 1px solid #7e8993 !important;
+                border-radius: 3px !important;
+                background: #ffffff !important;
+                font-size: 13px !important;
+                line-height: normal !important;
+                color: #32373c !important;
+                margin: 0 !important;
             }
-            .wpe-test-credentials-result.error {
-                background-color: #f2dede;
-                border: 1px solid #ebccd1;
-                color: #a94442;
+            .wpe-search-container input:focus {
+                outline: none !important;
+                border-color: #2271b1 !important;
+                box-shadow: 0 0 0 1px #2271b1 !important;
             }
-            #wpadminbar .wpe-site-header {
-                padding: 0 8px;
-                background: #32373c;
-                color: #eee;
-                font-weight: 600;
+
+            /* Current site section */
+            .wpe-current-site {
+                background: #2271b1 !important;
+                color: #ffffff !important;
+                font-weight: 600 !important;
+            }
+            .wpe-current-site-installs {
+                background: #135e96 !important;
+            }
+            .wpe-current-site-installs .ab-item {
+                color: #ffffff !important;
+            }
+
+            /* Separator */
+            .wpe-menu-separator {
+                height: 1px !important;
+                margin: 5px 0 !important;
+                background: #454545 !important;
+                padding: 0 !important;
+            }
+
+            /* Other sites label */
+            .wpe-other-sites-label {
+                padding: 4px 8px !important;
+                color: #a7aaad !important;
+                font-size: 13px !important;
+            }
+            
+            /* Environment labels */
+            .wpe-env-label {
+                float: right !important;
+                opacity: 0.8 !important;
+                font-size: 0.9em !important;
+                color: #a7aaad !important;
+                margin-left: 8px !important;
+            }
+
+            /* Search results */
+            .wpe-search-results {
+                padding: 4px 0 !important;
+            }
+            .wpe-search-results .ab-item:hover {
+                color: #72aee6 !important;
+            }
+            .wpe-no-results {
+                padding: 4px 8px !important;
+                color: #a7aaad !important;
+                font-style: italic !important;
             }
         ');
     }
@@ -224,6 +296,55 @@ class WPEngine_Sites_Menu {
         return $domain;
     }
 
+    public function search_sites_ajax() {
+        check_ajax_referer('wpe_search_sites', 'nonce');
+
+        if (!$this->init_sdk()) {
+            wp_send_json_error('Failed to initialize SDK');
+            return;
+        }
+
+        $search = strtolower(sanitize_text_field($_POST['search']));
+        if (empty($search)) {
+            wp_send_json_success(array('results' => array()));
+            return;
+        }
+
+        try {
+            $sites_response = $this->sdk->sites->listSites();
+            $results = array();
+
+            if (!empty($sites_response['results'])) {
+                foreach ($sites_response['results'] as $site) {
+                    if (!empty($site['installs'])) {
+                        foreach ($site['installs'] as $install) {
+                            if (!empty($install['cname'])) {
+                                $site_name = strtolower($site['name']);
+                                $install_name = strtolower($install['name']);
+                                $domain = strtolower($install['cname']);
+
+                                if (strpos($site_name, $search) !== false ||
+                                    strpos($install_name, $search) !== false ||
+                                    strpos($domain, $search) !== false) {
+                                    $results[] = array(
+                                        'site_name' => $site['name'],
+                                        'install_name' => $install['name'],
+                                        'environment' => $install['environment'],
+                                        'url' => 'https://' . $install['cname']
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            wp_send_json_success(array('results' => $results));
+        } catch (\Exception $e) {
+            wp_send_json_error($e->getMessage());
+        }
+    }
+
     public function add_wpe_sites_menu($wp_admin_bar) {
         if (!$this->init_sdk()) {
             return;
@@ -234,73 +355,117 @@ class WPEngine_Sites_Menu {
             $current_domain_root = $this->get_domain_root($current_domain);
             
             $sites_response = $this->sdk->sites->listSites();
-            $matching_sites = array();
+            $current_site = null;
 
-            // First, find sites that have at least one matching install
+            // Find current site
             if (!empty($sites_response['results'])) {
                 foreach ($sites_response['results'] as $site) {
                     if (!empty($site['installs'])) {
-                        $has_matching_install = false;
-                        
-                        // Check if any install matches the domain root
                         foreach ($site['installs'] as $install) {
                             if (!empty($install['cname'])) {
                                 $install_domain_root = $this->get_domain_root($install['cname']);
                                 if ($install_domain_root === $current_domain_root) {
-                                    $has_matching_install = true;
-                                    break;
+                                    $current_site = $site;
+                                    break 2;
                                 }
                             }
                         }
-                        
-                        // If site has a matching install, include all its installs
-                        if ($has_matching_install) {
-                            $matching_sites[] = $site;
-                        }
                     }
                 }
             }
 
-            if (!empty($matching_sites)) {
-                // Add the main menu item
+            // Add the main menu item
+            $wp_admin_bar->add_node(array(
+                'id' => 'wpe-sites',
+                'title' => 'WP Engine Sites',
+                'href' => '#',
+                'meta' => array(
+                    'class' => 'wpe-sites-menu'
+                )
+            ));
+
+            // Add current site section if found
+            if ($current_site) {
+                // Add "Current Site:" label
                 $wp_admin_bar->add_node(array(
-                    'id' => 'wpe-sites',
-                    'title' => 'WP Engine Sites',
-                    'href' => '#',
+                    'parent' => 'wpe-sites',
+                    'id' => 'wpe-current-site-label',
+                    'title' => __('Current Site:', 'wp-engine-sites-menu'),
                     'meta' => array(
-                        'class' => 'wpe-sites-menu'
+                        'class' => 'wpe-current-site-label'
                     )
                 ));
 
-                // Add all installs from matching sites
-                foreach ($matching_sites as $site) {
-                    // Add site name as a header
-                    $wp_admin_bar->add_node(array(
-                        'parent' => 'wpe-sites',
-                        'id' => 'wpe-site-header-' . sanitize_title($site['name']),
-                        'title' => esc_html($site['name']),
-                        'meta' => array(
-                            'class' => 'wpe-site-header'
-                        )
-                    ));
+                // Add current site header
+                $wp_admin_bar->add_node(array(
+                    'parent' => 'wpe-sites',
+                    'id' => 'wpe-current-site',
+                    'title' => esc_html($current_site['name']),
+                    'meta' => array(
+                        'class' => 'wpe-current-site'
+                    )
+                ));
 
-                    // Add all installs for this site
-                    foreach ($site['installs'] as $install) {
-                        if (!empty($install['cname'])) {
-                            $wp_admin_bar->add_node(array(
-                                'parent' => 'wpe-sites',
-                                'id' => 'wpe-site-' . sanitize_title($site['name'] . '-' . $install['name']),
-                                'title' => sprintf(
-                                    '%s (%s)',
-                                    esc_html($install['name']),
-                                    esc_html($install['environment'])
-                                ),
-                                'href' => 'https://' . esc_attr($install['cname'])
-                            ));
-                        }
+                // Add current site's installs
+                foreach ($current_site['installs'] as $install) {
+                    if (!empty($install['cname'])) {
+                        $wp_admin_bar->add_node(array(
+                            'parent' => 'wpe-sites',
+                            'id' => 'wpe-current-install-' . sanitize_title($install['name']),
+                            'title' => sprintf(
+                                '%s (%s)',
+                                esc_html($install['name']),
+                                esc_html($install['environment'])
+                            ),
+                            'href' => 'https://' . esc_attr($install['cname']),
+                            'meta' => array(
+                                'class' => 'wpe-current-site-installs'
+                            )
+                        ));
                     }
                 }
+
+                // Add separator
+                $wp_admin_bar->add_node(array(
+                    'parent' => 'wpe-sites',
+                    'id' => 'wpe-separator',
+                    'title' => '',
+                    'meta' => array(
+                        'class' => 'wpe-menu-separator'
+                    )
+                ));
             }
+
+            // Add "Other WPE Sites" label
+            $wp_admin_bar->add_node(array(
+                'parent' => 'wpe-sites',
+                'id' => 'wpe-other-sites-label',
+                'title' => __('Other WPE Installs', 'wp-engine-sites-menu'),
+                'meta' => array(
+                    'class' => 'wpe-other-sites-label'
+                )
+            ));
+
+            // Add search box
+            $wp_admin_bar->add_node(array(
+                'parent' => 'wpe-sites',
+                'id' => 'wpe-sites-search',
+                'title' => '<input type="text" placeholder="Search installs..." />',
+                'meta' => array(
+                    'class' => 'wpe-search-container'
+                )
+            ));
+
+            // Add container for search results
+            $wp_admin_bar->add_node(array(
+                'parent' => 'wpe-sites',
+                'id' => 'wpe-search-results',
+                'title' => '',
+                'meta' => array(
+                    'class' => 'wpe-search-results'
+                )
+            ));
+
         } catch (\Exception $e) {
             // Silently fail - don't show menu if there's an error
         }
